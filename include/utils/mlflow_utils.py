@@ -8,6 +8,7 @@ import mlflow.xgboost
 import mlflow.lightgbm
 import mlflow.pyfunc
 from mlflow.tracking import MlflowClient
+from .service_discovery import get_mlflow_endpoint, get_minio_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -34,4 +35,7 @@ class MLflowManager:
                 except Exception as e2:
                     logger.error(f"Experiment {self.experiment_name} failed to set again: {e2}")
         os.environ['MLFLOW_S3_ENDPOINT_URL'] = get_minio_endpoint()
+        os.environ['AWS_ACCESS_KEY_ID'] = os.getenv('AWS_ACCESS_KEY_ID','minioadmin')
+        os.environ['AWS_SECRET_ACCESS_KEY'] = os.getenv('AWS_SECRET_ACCESS_KEY','minioadmin')
+        self.client = MlflowClient(tracking_uri=self.tracking_uri)
         
