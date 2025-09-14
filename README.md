@@ -112,4 +112,3 @@ AI-RetailIQ/
 
 ---
 
-> **Ready to forecast your retail sales with AI? Get started with AI-RetailIQ!**
