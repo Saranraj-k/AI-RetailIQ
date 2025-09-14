@@ -361,10 +361,37 @@ class ModelTrainer:
 
             self.save_artifacts()
             current_run_id = mlflow.active_run().info.run_id
+            self.mlflow_manager.end_run()
+            #sync arifacts to minios3
+            from utils.mlflow_s3_utils import MLflowS3Manager
+            logger.info("Syncing MLflow artifacts to S3...")
+            try:
+                s3_manager = MLflowS3Manager()
+                s3_manager.sync_mlflow_artifacts_to_s3(current_run_id)
+                logger.info("Artifacts synced to S3 successfully")
+                from utils.s3_verifications import verify_s3_artifacts, log_s3_verification_results
+                logger.info("Verifying S3 artifacts...")
+                verification_results = verify_s3_artifacts(current_run_id, expected_artifacts=[
+                    'models',
+                    'scalers.pkl',
+                    'enscoders.pkl',
+                    'feature_cols.pkl',
+                    'visualizations/',
+                    'reports/'
+                ])
+                log_s3_verification_results(verification_results)
+                if not verification_results['success']:
+                    raise ValueError("S3 artifact verification failed")
+            except Exception as se:
+                logger.error(f"S3 sync/verification failed: {se}")
+                raise se
+            
+
         except Exception as e:
             logger.error(f"Error in model training: {e}")
             self.mlflow_manager.end_run(run_id, status='FAILED')
             raise e
+        return results
     
     
     def _generate_and_log_visualizations(self, results: Dict[str, Any], 
