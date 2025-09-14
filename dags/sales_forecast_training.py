@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
+from airflow.operators.bash import BashOperator
 import pandas as pd
 import sys
 sys.path.append("/usr/local/airflow/include")
@@ -98,7 +99,7 @@ def sales_forecast_training():
                 logger.info(f"validation summary:{validation_summary}")
 
     @task()
-    def train_model_task(validation_summary):
+    def train_models_task(validation_summary):
         file_paths = validation_summary['file_paths']
         logger.info(f"Training Models....")
         sales_df= []
@@ -258,5 +259,17 @@ def sales_forecast_training():
 
     extract_result = extract_data_task()
     validation_summary = validate_data_task(extract_result)
-sales_forecast_training()
-        
+    training_result = train_models_task(extract_result, validation_summary)
+    evaluation_result = evaluate_models_task(training_result)
+    model_versions = register_best_model_task(evaluation_result)
+    transition = transition_to_production_task(model_versions)
+    report = generate_performance_report_task(training_result, validation_summary)
+    cleanup = BashOperator(
+        task_id="cleanup",
+        bash_command="rm -rf /tmp/sales_data /tmp/performance_report.json || true",
+    )
+    report >> cleanup
+
+
+sales_forecast_training_dag = sales_forecast_training()
+
